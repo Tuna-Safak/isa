@@ -1,0 +1,11 @@
+marker,value,unit,reference,status,ref_min,ref_max,pct_deviation_from_center,risk_level
+Leukozyten,7.0,/ul,3.0-10.0 /ul,normal,3.0,10.0,7.69,normal
+Erythrozyten,4.4,Mio./ul,4.4-5.9 Mio./ul,normal,4.4,5.9,-14.56,borderline
+Haemoglobin,16.9,g/dl,11.8-16.9 g/dl,normal,11.8,16.9,17.77,borderline
+Haematokrit,40.0,%,35-52 %,normal,35.0,52.0,-8.05,normal
+MCV,82.0,fl,80-100 fl,normal,80.0,100.0,-8.89,borderline
+MCH,32.0,pg,27-34 pg,normal,27.0,34.0,4.92,borderline
+MCHC,32.0,g/dl,32-36 g/dl,normal,32.0,36.0,-5.88,borderline
+Thrombozyten,390.0,Tsd/ul,130-400 Tsd/ul,normal,130.0,400.0,47.17,borderline
+HbA1c,5.1,%,4.5-5.6 %,normal,4.5,5.6,0.99,borderline
+Blutzucker,87.0,mg/dl,74-100 mg/dl,normal,74.0,100.0,0.0,normal

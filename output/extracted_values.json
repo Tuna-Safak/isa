@@ -1,0 +1,72 @@
+[
+  {
+    "marker": "Leukozyten",
+    "value": 7.0,
+    "unit": "/ul",
+    "reference": "3.0-10.0 /ul",
+    "status": "normal"
+  },
+  {
+    "marker": "Erythrozyten",
+    "value": 4.4,
+    "unit": "Mio./ul",
+    "reference": "4.4-5.9 Mio./ul",
+    "status": "normal"
+  },
+  {
+    "marker": "Haemoglobin",
+    "value": 16.9,
+    "unit": "g/dl",
+    "reference": "11.8-16.9 g/dl",
+    "status": "normal"
+  },
+  {
+    "marker": "Haematokrit",
+    "value": 40.0,
+    "unit": "%",
+    "reference": "35-52 %",
+    "status": "normal"
+  },
+  {
+    "marker": "MCV",
+    "value": 82.0,
+    "unit": "fl",
+    "reference": "80-100 fl",
+    "status": "normal"
+  },
+  {
+    "marker": "MCH",
+    "value": 32.0,
+    "unit": "pg",
+    "reference": "27-34 pg",
+    "status": "normal"
+  },
+  {
+    "marker": "MCHC",
+    "value": 32.0,
+    "unit": "g/dl",
+    "reference": "32-36 g/dl",
+    "status": "normal"
+  },
+  {
+    "marker": "Thrombozyten",
+    "value": 390.0,
+    "unit": "Tsd/ul",
+    "reference": "130-400 Tsd/ul",
+    "status": "normal"
+  },
+  {
+    "marker": "HbA1c",
+    "value": 5.1,
+    "unit": "%",
+    "reference": "4.5-5.6 %",
+    "status": "normal"
+  },
+  {
+    "marker": "Blutzucker",
+    "value": 87.0,
+    "unit": "mg/dl",
+    "reference": "74-100 mg/dl",
+    "status": "normal"
+  }
+]
