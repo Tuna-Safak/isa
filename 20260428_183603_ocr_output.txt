@@ -1,0 +1,10 @@
+Anforderung Ergebnis Einheit Normbereich Ziffer :
+Al-Globulin (abs.) 2.5 g/l 2.1 - 3.5
+A2-Globulin (abs.) 6.2 g/l 5.1 - 8.5
+Beta-1-Globulin (abs. 3.9 g/l 3.4 - 5.2
+Beta-2-Globulin (abs. 3.0 g/l 2.3 - 4.7
+Gamma-Globulin (abs.) - 7.0 g/l 8.0 - 13.5
+
+Bs END -Befund
+
+1,673

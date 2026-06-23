@@ -1,11 +1,10 @@
-marker,value,unit,reference,status
-Leukozyten,7.0,/ul,3.0-10.0 /ul,normal
-Erythrozyten,4.4,Mio./ul,4.4-5.9 Mio./ul,normal
-Haemoglobin,16.9,g/dl,11.8-16.9 g/dl,normal
-Haematokrit,40.0,%,35-52 %,normal
-MCV,82.0,fl,80-100 fl,normal
-MCH,32.0,pg,27-34 pg,normal
-MCHC,32.0,g/dl,32-36 g/dl,normal
-Thrombozyten,390.0,Tsd/ul,130-400 Tsd/ul,normal
-HbA1c,5.1,%,4.5-5.6 %,normal
-Blutzucker,87.0,mg/dl,74-100 mg/dl,normal
+marker,value,unit,reference
+GPT / ALAT,21,u/l,< 50
+Gamma-Gt,54,u/l,< 60
+Cholesterin,197,mg/dl,< 200
+HDL-Cholesterin,48,mg/dl,> 40
+Triglyceride,128,mg/dl,< 150
+Kreatinin,0.95,mg/dl,0.84 - 1.25
+Kalium,4.7,mmol/l,3.5 - 5.1
+Ferritin,120,ng/ml,30 - 300
+TSH,1.8,uIU/ml,0.4 - 4.0

@@ -1,0 +1,50 @@
+Anforderung Ergebnis Einheit Normbereich Ziffer
+GPT / ALAT 21 U/1 < 50 3595H1
+Gamma-Gt 54 U/1 < 60 3592H1
+Alk. Phosphatase a2 U/1 40 - 130 3587H1
+Cholesterin "197 mg/dl < 200 3562H1
+HDL- Cholesterin . 48 mg/dl > 40 3563Hl
+LDL-Chol. gemessen ! 140 mg/dl 3564Hl
+Pat. mit niedrigem kardiovaskulären Risiko: < 116
+
+Pat. mit moderatem kardiovaskulären Risiko: < 100
+
+Pat. mit hohem kardiovaskulären Risiko: < 70
+
+Pat. mit sehr hohem kardiovaskulären Risiko: < 55
+
+Bitte beachten Sie den geänderten Referenzbereich ab 01.02.22.
+Triglyceride 128 mg/dl < 150 3565H1
+Kreatinin 0.95 mg/dl 0.84 - 1.25 3585H1
+MDRD-Formel (Kreatini 88 GFR >= 60
+
+GFR in ml/min/1.73 qm Körperoberfläche ;
+
+® Die MDRD-Formel sollte nicht eingesetzt werden bei:
+
+Kindern, Über- und Untergewicht, hohem Alter, Muskelerkran-
+kungen, Vegetariern, sich schnell verändernder Nierenfunktion,
+Dosisberechnung von nephrotoxischen Medikamenten, etc.
+
+Der Bereich GFR 60-90 ml/min/1.73qm (geringgradige Funktions-
+einschränkung) kann mit der MDRD-Formel nicht zuverlässig
+abgeschätzt werden.
+
+Aerztliche Laborgemeinschaft --Folgeblatt--
+
+Eingangsdatum: 20.05.22 GOAE
+Patient:DIETRICH DOMINIK Befunddatum : 20.05.22 22:45
+Patienten-Nr.: 360314551 Tagesnummer : 360314551
+Anforderung Ergebnis Einheit Normbereich Ziffer
+Eine zuverlässigere Einschätzung der Nierenfunktion kann anhand
+
+® der CKD-EPI-Formel (+Albumin im Urin) oder der Bestimmung von
+
+Cystatin C im Serum erreicht werden.
+
+Kalium 4.7 mmol/l 3.5 - 5.1 3557
+Calcium 2.36 mmol/l 2.05 - 2.55 3555
+Gesamteiweiss 67.9 g/l 61 - 79 3573H1
+
+Br, SE en Ve a “
+ea. 0. Er a \ uk
