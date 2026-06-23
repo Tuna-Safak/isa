@@ -1,80 +1,41 @@
-OCR output saved: 2026-06-14T08:46:12.114366 UTC
+OCR output saved: 2026-06-23T10:14:35.826405 UTC
 
-Entnahmetag: DIENSTAG N e 7
-Entnahmezeitpunkt: 08-09 h on Au u» 1OIRO
-Untersuchungsmaterial: EDTA-Blut
-
-Blutbild 3550
-Leukozyten 7.0 al 3, - OL
-Erythrozyten ; Mio./ul 4.4 -5.
-Haemoglobin . g/al 1,8 58 16.9
-Haematokrit : % 40
-
-MCV : iE,1l 82
-
-MCH pg 28
-
-MCHC g/dl 32
-
-RDW . % & 45
-Thrombozyten 130 390
-Differentialblutbilda
-
-Neutrophile
-
-neutrophile Gr., unre
-
-Lymphozyten
-
-Monozyten
-
-Eosinophile
-
-Basophile
-
-Neutrophile abs.
-
-neutrophile Gr., unre ;
-
-Lymphozyten abs. .38 Tsnd/ul
-
-Aerztliche Laborgemeinschaft --Folgeblatt- -
-
-Eingangsdatum: 27.04.21 GOAE
-Patient: Befunddatum : 27.04.21 22:45
-Patienten-Nr.: 360312701 Tagesnummer : 360312701
-
-Monozyten absolut : Tsnd/ul
-
-Eosinophile abs. 0.26 Tsnd/ul 8
-
-Basophile abs. 0.07 Tsnd/ul 2
-
-HbA1l e (NGSP) 5,1 ° 4. 5.6 3561
-
-HbAl ce (IECE) 31,7 mmol/mol 29 8
-
-Diabetes Diagnose: LIECE
-
-Kein Diabetes mellitus : : < 39.0 mmol/mol
-Kontrolle Nüchternzucker oder oECTT : 5. . 39.0-46.0 mmol/mol
-Diabetes mellitus : ; > 46.0 mmol/mol
-Diabetes Therapiekontrolle:;
-
-Diabetiker, unbefried. Einstellung : > 58.5 mmol/mol
-DDE Empfehlungen, Diabetologie 2016; I1\ (Suppl 2): 518-581
-
-Mittlerer Blutglucose 100 naja
-
-Der MBE@ ist eine aus dem HbAle errechnete Größe, die an-
-näherungsweise über den Glucosewert der vergangenen 60 Tage
-informiert.
-
-Untersuchungsmaterial: Serum
-Blutzucker im Serum 87 mg/dl 74 - 100 3560
-Um einen in-vitro-Abfall des Blutzuckerwertes
-im Vollblut (ca. 8% pro Stunde) zu vermeiden, L
-empfehlen wir die Verwendung eines NaF/Citrat- I
-_ Röhrchens, z.B. GlucoEXAKT von Sarstedt oder
-eın entsprechendes Röhrchen anderer Hersteller.
-
+es Anforderung Ergebnis Finheit Normbereich zifrer = -
+- a; : m. 0.6 mag/al < 1,2 3581H1 =
+GPT / ALAT 47 u/l < 50 3595H1l =
+Gamma-Gt 55 u/l < 60 3592H1 =
+> Alk. Phosphatase 63 u/l 40 - 130 3587H1 m
+& Cholesterin naabı mg/dl < 200 3562H1 =
+HDL- Cholesterin 45 mg/dl > 40 3563Hl u -
+. LDL-Chol. berechnet |! 166 mg/dl Bi
+Be Pat. mit 0 - 1 Risikofaktoren :  < 160 =
+er Pat. mit 2 oder mehr Risikofaktoren » <= L30 Ze
+I: Pat. mit KHK oder Diab. mellitus ; e 100 2
+ir Pat. mit akutem Koronarsyndrom, Diabetiker mit KHK: < 70 32
+Rn LDL/HDL Quotient I 8.69 Quotient =
+ee, < 3.0 : Normalbefund =
+er 3.0 - 5.0 : Anstieg des KHK-Risikos 32
+ER > 5,0 : Hohes KHK-Risiko #
+=> @® _Triglyceride | 1960 mg/dl < 150 3565HL 5;
+Kreatinin 1.16 mg/dal 0.84 - 7.25 3585Fr 24
+= MDRD-Formel (Kreatini 70.0 GER >= 60
+Is GER in ml/min/1.73 qm Körperoberfläche &
+an Die MDRD-Formel sollte nicht eingesetzt werden bei: =
+= Kindern, Über- und Untergewicht, hohem Alter, Muskelerkran- >
++ kungen, Vegetariern, sich schnell verändernder Nierenfunktion, =
+3 Aerztliche Laborgemeinschaft --Folgeblatt- - :
+SEE, Eingangsdatum: 27.04.21 GOAE =
+== Patient: Befunddatum : 27.04.21 22:45 s
+ne Patienten-Nr.: 360312701 Tagesnummer : 360312701 5
+zE Anforderung Ergebnis Einheit Normbereich Ziffer
+„ee - © Dosisberechnung von nephrotoxischen Medikamenten, etc.
+zZ Der Bereich GER 60-90 ml/min/1.73m (geringradige Funktions-
+an einsehränkung) kann mit der MDRD-Formel nicht zuverlässig :
+ee abgeschätzt werden.
+= Eine zuverlässigere Einschätzung der Nierenfunktion k |
+= der CKD-EPI-Formel (+Albumin im Urin) oder der a
+= Cystatin C im Serum erreicht werden.
+| Harnsaeure 52 mg/dl 3,4 297,0 3583H1
+/ Kalium 4.8 umeol/il 8,5 = 5,1 3557
+Caleium 2210) mmol/l 2.05 - 2,55 3555
+Gesamteiweiss Sl g/l 61 - 79 3573H1

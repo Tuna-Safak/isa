@@ -22,27 +22,21 @@ import re
 from datetime import datetime
 
 try:
-    # Import third-party libraries; wrap in try/except to provide
-    # a clear message if dependencies are missing.
     from PIL import Image, ImageOps, ImageFilter, ImageEnhance
-except Exception as e:
+except Exception:
     print("ERROR: Pillow (PIL) is required. Install with 'pip install Pillow'.")
     raise
 
 try:
     import pytesseract
     from pytesseract import image_to_osd
-except Exception as e:
+except Exception:
     print("ERROR: pytesseract is required. Install with 'pip install pytesseract'.")
     raise
 
 
 def ensure_output_dir(output_dir):
-    """Create the output directory if it does not exist.
-
-    We create the folder relative to this script's directory so the output
-    is stored inside the project workspace (safe and portable).
-    """
+    """Create the output directory if it does not exist."""
     if not os.path.exists(output_dir):
         print(f"Creating output directory: {output_dir}")
         try:
@@ -53,82 +47,69 @@ def ensure_output_dir(output_dir):
 
 
 def preprocess_image(img):
-    """Apply a sequence of preprocessing steps and return the processed image.
-
-    Steps and rationale:
-    - Convert to grayscale: reduces color noise and focuses OCR on luminance.
-    - Increase contrast: helps separate text from background.
-    - Sharpen: accentuates text edges for better OCR clarity.
-    - Optional small blur/denoise could be added depending on input quality.
-    """
+    """Apply a sequence of preprocessing steps and return the processed image."""
     print("Preprocessing: converting to grayscale...")
-    gray = ImageOps.grayscale(img)  # keep as PIL Image
+    gray = ImageOps.grayscale(img)
 
     print("Preprocessing: enhancing contrast...")
-    # Contrast factor >1 increases contrast; 1.5 is a gentle boost.
     contrast_enhancer = ImageEnhance.Contrast(gray)
     contrasted = contrast_enhancer.enhance(1.5)
 
     print("Preprocessing: sharpening image...")
-    # Use an unsharp mask for a stronger, more natural sharpening effect.
-    sharpened = contrasted.filter(ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3))
+    sharpened = contrasted.filter(
+        ImageFilter.UnsharpMask(radius=2, percent=150, threshold=3)
+    )
 
     return sharpened
 
 
 def detect_rotation_angle(img):
-    """Detect rotation using Tesseract OSD and return the rotation angle in degrees.
-
-    We call `image_to_osd` which returns a string containing a 'Rotate:' line
-    with the detected clockwise rotation (0,90,180,270). We parse and return
-    that angle. If detection fails, return 0 as a safe fallback.
-    """
+    """Detect rotation using Tesseract OSD and return the rotation angle in degrees."""
     try:
         print("Detecting image orientation using Tesseract OSD...")
         osd = image_to_osd(img)
-        # Example OSD output contains a line like: "Rotate: 90\n"
-        m = re.search(r"Rotate:\s*(\d+)", osd)
-        if m:
-            angle = int(m.group(1))
-            print(f"OSD reports rotation: {angle} degrees")
-            return angle
-        else:
-            print("OSD did not report rotation; assuming 0 degrees")
-            return 0
-    except pytesseract.TesseractError as e:
-        print(f"Warning: Tesseract OSD failed: {e}; assuming 0 degrees")
+        # image_to_osd may return bytes on some installations
+        if isinstance(osd, bytes):
+            try:
+                osd = osd.decode('utf-8', errors='ignore')
+            except Exception:
+                osd = str(osd)
+
+        # Try several common OSD output patterns
+        for pattern in [r"Rotate:\s*(\d+)", r"Orientation in degrees:\s*(\d+)", r"orientation:\s*(\d+)"]:
+            m = re.search(pattern, osd, flags=re.IGNORECASE)
+            if m:
+                angle = int(m.group(1))
+                print(f"OSD reports rotation: {angle} degrees")
+                return angle
+
+        print("OSD did not report rotation; assuming 0 degrees")
         return 0
     except Exception as e:
+        # pytesseract can raise a variety of exceptions (including TesseractNotFoundError)
         print(f"Warning: orientation detection failed: {e}; assuming 0 degrees")
         return 0
 
 
 def rotate_image(img, angle):
-    """Rotate the image to correct orientation.
-
-    Tesseract OSD returns the clockwise rotation needed to make text upright.
-    PIL's `rotate` rotates counter-clockwise, so we negate the angle.
-    We use `expand=True` to avoid cropping corners after rotation.
-    """
+    """Rotate the image to correct orientation."""
     if not angle or angle == 0:
         print("No rotation needed.")
         return img
-    # Rotate by negative angle to correct the image
+
     corrected = img.rotate(-angle, expand=True)
     print(f"Rotated image by {-angle} degrees to correct orientation.")
     return corrected
 
 
 def run_ocr(img, lang='deu'):
-    """Run Tesseract OCR on the provided PIL Image and return extracted text.
-
-    We pass `lang='deu'` to use German language models (must be installed
-    in the system Tesseract installation). If language data is missing,
-    Tesseract will raise an error.
-    """
+    """Run Tesseract OCR on the provided PIL Image and return extracted text."""
     print(f"Running Tesseract OCR with language='{lang}'...")
     try:
-        text = pytesseract.image_to_string(img, lang=lang)
+        # Use a sensible default page segmentation mode; users can override by
+        # changing this function if needed. Keep config simple and reliable.
+        config = '--psm 6'
+        text = pytesseract.image_to_string(img, lang=lang, config=config)
         return text
     except pytesseract.TesseractError as e:
         print(f"ERROR: Tesseract failed: {e}")
@@ -136,10 +117,7 @@ def run_ocr(img, lang='deu'):
 
 
 def save_text(text, output_path):
-    """Save the extracted text to a file, writing a header with timestamp.
-
-    We open the file using UTF-8 to correctly store German umlauts.
-    """
+    """Save the extracted text to a file, writing a header with timestamp."""
     try:
         print(f"Saving OCR output to: {output_path}")
         with open(output_path, 'w', encoding='utf-8') as f:
@@ -151,21 +129,24 @@ def save_text(text, output_path):
         raise
 
 
-def main():
-    # Absolute path to the input image (as requested)
-    input_path = '/Users/tunasafak/Desktop/bloodtest.jpg'
+def process_image_file(input_path, lang='deu'):
+    """
+    Full OCR pipeline for one image file.
 
-    # Choose output directory relative to this script file
+    Parameters:
+        input_path (str): Path to the image file
+        lang (str): Tesseract language, default 'deu'
+
+    Returns:
+        str: extracted OCR text
+    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     output_dir = os.path.join(script_dir, 'output')
     output_file = os.path.join(output_dir, 'ocr_output.txt')
 
     print("OCR pipeline started.")
-
-    # Ensure output directory exists
     ensure_output_dir(output_dir)
 
-    # Load the image file
     try:
         print(f"Loading image from: {input_path}")
         if not os.path.exists(input_path):
@@ -173,43 +154,59 @@ def main():
         img = Image.open(input_path)
     except Exception as e:
         print(f"ERROR: Could not open input image: {e}")
-        sys.exit(1)
+        raise
 
-    # Preprocess the image for better OCR
     try:
         processed = preprocess_image(img)
     except Exception as e:
         print(f"ERROR during preprocessing: {e}")
-        sys.exit(1)
+        raise
 
-    # Detect and fix rotation
     try:
         angle = detect_rotation_angle(processed)
         corrected = rotate_image(processed, angle)
     except Exception as e:
         print(f"ERROR during rotation correction: {e}")
-        corrected = processed  # fallback to processed image
+        corrected = processed
 
-    # Run OCR using German language models
     try:
-        extracted_text = run_ocr(corrected, lang='deu')
-    except Exception as e:
+        extracted_text = run_ocr(corrected, lang=lang)
+    except Exception:
         print("ERROR: OCR step failed. Ensure Tesseract is installed and 'deu' language data is present.")
         print("If Tesseract is not in PATH, set pytesseract.pytesseract.tesseract_cmd to the full executable path.")
-        sys.exit(1)
+        raise
 
-    # Print extracted text so user can see it immediately
     print("--- OCR EXTRACTED TEXT START ---")
     print(extracted_text)
     print("--- OCR EXTRACTED TEXT END ---")
 
-    # Save to output file
-    try:
-        save_text(extracted_text, output_file)
-    except Exception:
-        sys.exit(1)
+    save_text(extracted_text, output_file)
 
     print("OCR pipeline finished successfully.")
+    return extracted_text
+
+
+def main():
+    default_path = '/Users/tunasafak/Desktop/bloodtest.jpg'
+
+    # Accept an optional command-line argument for the input image path.
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ('-h', '--help'):
+            print('Usage: python ocr.py [/path/to/image.jpg]')
+            sys.exit(0)
+        input_path = sys.argv[1]
+    else:
+        input_path = default_path
+
+    if not os.path.exists(input_path):
+        print(f"ERROR: Input image not found: {input_path}")
+        print('Provide a valid image path as the first argument.')
+        sys.exit(2)
+
+    try:
+        process_image_file(input_path)
+    except Exception:
+        sys.exit(1)
 
 
 if __name__ == '__main__':
