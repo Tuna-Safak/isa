@@ -1,0 +1,50 @@
+[
+  {
+    "marker": "GPT / ALAT",
+    "value": "21",
+    "unit": "u/l",
+    "reference": "< 50"
+  },
+  {
+    "marker": "Gamma-Gt",
+    "value": "54",
+    "unit": "u/l",
+    "reference": "< 60"
+  },
+  {
+    "marker": "Cholesterin",
+    "value": "197",
+    "unit": "mg/dl",
+    "reference": "< 200"
+  },
+  {
+    "marker": "HDL-Cholesterin",
+    "value": "48",
+    "unit": "mg/dl",
+    "reference": "> 40"
+  },
+  {
+    "marker": "Triglyceride",
+    "value": "128",
+    "unit": "mg/dl",
+    "reference": "< 150"
+  },
+  {
+    "marker": "Kreatinin",
+    "value": "0.95",
+    "unit": "mg/dl",
+    "reference": "0.84 - 1.25"
+  },
+  {
+    "marker": "Kalium",
+    "value": "4.7",
+    "unit": "mmol/l",
+    "reference": "3.5 - 5.1"
+  },
+  {
+    "marker": "Calcium",
+    "value": "2.36",
+    "unit": "mmol/l",
+    "reference": "2.05 - 2.55"
+  }
+]
