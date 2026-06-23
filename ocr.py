@@ -23,6 +23,7 @@ KEYWORDS = [
 
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp"}
 SUPPORTED_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | {".pdf"}
+FAST_PSM = 6
 
 
 def score_text(text: str) -> int:
@@ -79,6 +80,14 @@ def preprocess_variants(img: Image.Image):
     return variants
 
 
+def fast_preprocess_variants(img: Image.Image):
+    gray = ImageOps.grayscale(img)
+    return [
+        ("gray", gray),
+        ("autocontrast", ImageOps.autocontrast(gray)),
+    ]
+
+
 def oriented_images(img: Image.Image):
     return [
         ("rot0", img),
@@ -127,6 +136,29 @@ def run_ocr_on_image(img: Image.Image, lang: str = "deu+eng"):
     return best_text, best_score, best_meta
 
 
+def run_fast_ocr_on_image(img: Image.Image, lang: str = "deu+eng"):
+    config = f"--oem 3 --psm {FAST_PSM} -l {lang}"
+    best_text = ""
+    best_score = float("-inf")
+    best_meta = None
+
+    candidates = [
+        ("rot0", ImageOps.exif_transpose(img)),
+        ("rot90_ccw", ImageOps.exif_transpose(img).rotate(90, expand=True)),
+    ]
+
+    for rotation_name, rotated_img in candidates:
+        for variant_name, variant_img in fast_preprocess_variants(rotated_img):
+            text = pytesseract.image_to_string(variant_img, config=config)
+            score = score_text(text)
+            if score > best_score:
+                best_score = score
+                best_text = text
+                best_meta = (rotation_name, variant_name, f"psm{FAST_PSM}")
+
+    return best_text, best_meta
+
+
 def pdf_to_images(pdf_path: str, dpi: int = 400):
     return convert_from_path(pdf_path, dpi=dpi)
 
@@ -150,10 +182,14 @@ def extract_text_from_pdf(pdf_path: str, lang: str = "deu+eng"):
     return "\n".join(all_text)
 
 
-def extract_text_from_image(image_path: str, lang: str = "deu+eng"):
+def extract_text_from_image(image_path: str, lang: str = "deu+eng", fast: bool = True):
     img = image_file_to_image(image_path)
-    text, score, meta = run_ocr_on_image(img, lang=lang)
-    print(f"Best rotation={meta[0]}, variant={meta[1]}, config={meta[2]}, score={score:.2f}")
+    if fast:
+        text, meta = run_fast_ocr_on_image(img, lang=lang)
+        print(f"Fast OCR variant={meta[1]}, config={meta[2]}")
+    else:
+        text, score, meta = run_ocr_on_image(img, lang=lang)
+        print(f"Best rotation={meta[0]}, variant={meta[1]}, config={meta[2]}, score={score:.2f}")
     return text
 
 
@@ -180,14 +216,14 @@ def iter_supported_input_files(input_path: Path, recursive: bool = False):
             yield candidate
 
 
-def extract_text_from_path(input_path: str, lang: str = "deu+eng"):
+def extract_text_from_path(input_path: str, lang: str = "deu+eng", fast: bool = True):
     path = Path(input_path)
     ext = path.suffix.lower()
 
     if ext == ".pdf":
         return extract_text_from_pdf(input_path, lang=lang)
     if ext in SUPPORTED_IMAGE_EXTENSIONS:
-        return extract_text_from_image(input_path, lang=lang)
+        return extract_text_from_image(input_path, lang=lang, fast=fast)
     raise ValueError("Unsupported file type. Use PDF or image.")
 
 
@@ -223,7 +259,7 @@ def process_directory(input_dir: Path, output_dir: Path, lang: str, recursive: b
 
     for file_path in files:
         print(f"\n=== Processing {file_path} ===")
-        text = extract_text_from_path(str(file_path), lang=lang)
+        text = extract_text_from_path(str(file_path), lang=lang, fast=True)
         combined_parts.append(f"\n===== {file_path} =====\n{text}")
         file_output = output_dir / f"{file_path.stem}_ocr_output.txt"
         file_output.write_text(text, encoding="utf-8")
@@ -282,7 +318,7 @@ def main():
 def process_image_file(input_path: str, lang: str = 'deu') -> str:
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input image not found: {input_path}")
-    return extract_text_from_image(input_path, lang=lang)
+    return extract_text_from_image(input_path, lang=lang, fast=True)
 
 
 if __name__ == "__main__":

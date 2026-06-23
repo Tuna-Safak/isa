@@ -20,15 +20,19 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import pandas as pd
 os.environ.setdefault("MPLCONFIGDIR", "/private/tmp/codex-mplconfig")
 os.environ.setdefault("XDG_CACHE_HOME", "/private/tmp/codex-cache")
 Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
 Path(os.environ["XDG_CACHE_HOME"]).mkdir(parents=True, exist_ok=True)
+
+try:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+except Exception:  # pragma: no cover - optional dependency fallback
+    plt = None
 
 from pptx import Presentation
 from pptx.dml.color import RGBColor
@@ -220,6 +224,8 @@ def add_slide_title(slide, title: str, subtitle: Optional[str] = None) -> None:
 
 
 def build_bar_chart(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
+    if plt is None:
+        return None
     usable = df[df["value"].notna()].copy()
     if usable.empty:
         return None
@@ -239,6 +245,8 @@ def build_bar_chart(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
 
 
 def build_deviation_chart(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
+    if plt is None:
+        return None
     usable = df[df["pct_deviation_from_center"].notna()].copy()
     if usable.empty:
         return None
@@ -258,6 +266,8 @@ def build_deviation_chart(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
 
 
 def build_status_pie(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
+    if plt is None:
+        return None
     counts = Counter(df["status"].fillna("unknown"))
     if not counts:
         return None
@@ -528,6 +538,59 @@ def add_summary_slide(prs: Presentation, df: pd.DataFrame) -> None:
         p.font.color.rgb = SLATE
 
 
+def build_recommendations(df: pd.DataFrame) -> list[str]:
+    recommendations = []
+    notable = df[df["status"].isin(["low", "high", "borderline"])].copy()
+
+    if notable.empty:
+        return [
+            "No clear abnormalities detected in the structured data.",
+            "Continue with routine follow-up according to the treating clinician's plan.",
+            "Use the original laboratory report and symptoms for final interpretation.",
+        ]
+
+    lower_markers = " ".join(notable["marker"].str.lower().tolist())
+
+    if any(key in lower_markers for key in ["cholesterin", "hdl", "ldl", "triglyceride"]):
+        recommendations.append("Review lipid values with your clinician, especially if they remain above target on repeat testing.")
+    if any(key in lower_markers for key in ["glukose", "glucose", "hba1c", "hba1c"]):
+        recommendations.append("Correlate glucose-related values with fasting status and diabetes risk factors.")
+    if any(key in lower_markers for key in ["kreatinin", "egfr", "harnstoff", "harnsäure"]):
+        recommendations.append("Discuss kidney-related markers in clinical context and consider follow-up if values stay abnormal.")
+    if any(key in lower_markers for key in ["gpt", "alat", "got", "ast", "gamma-gt", "bilirubin", "alkalische phosphatase"]):
+        recommendations.append("Correlate liver-related markers with medications, alcohol intake, and recent illness before interpreting further.")
+    if any(key in lower_markers for key in ["crp", "hs-crp", "leukozyten"]):
+        recommendations.append("Inflammation-related markers may warrant clinical correlation if symptoms are present.")
+    if any(key in lower_markers for key in ["ferritin", "eisen", "transferrin", "vitamin b12", "folsäure"]):
+        recommendations.append("Consider iron and vitamin status follow-up if fatigue, anemia, or dietary concerns are present.")
+    if any(key in lower_markers for key in ["tsh", "ft3", "ft4"]):
+        recommendations.append("If thyroid markers are abnormal, repeat testing and symptom review may be appropriate.")
+
+    if not recommendations:
+        recommendations.append("Review the notable values with the treating clinician for clinical context.")
+
+    recommendations.append("This report is informational and does not replace medical advice.")
+    return recommendations
+
+
+def add_recommendations_slide(prs: Presentation, df: pd.DataFrame) -> None:
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_modern_background(slide)
+    add_slide_title(slide, "Recommendations", "Data-driven next steps based on notable values")
+
+    recommendations = build_recommendations(df)
+    body_box = slide.shapes.add_textbox(Inches(0.85), Inches(1.65), Inches(8.6), Inches(4.6))
+    body = body_box.text_frame
+    body.clear()
+
+    for idx, item in enumerate(recommendations):
+        paragraph = body.paragraphs[0] if idx == 0 else body.add_paragraph()
+        paragraph.text = item
+        paragraph.level = 0
+        paragraph.font.size = Pt(18)
+        paragraph.font.color.rgb = SLATE
+
+
 def main() -> None:
     try:
         ensure_output_dir(OUTPUT_DIR)
@@ -548,6 +611,7 @@ def main() -> None:
         add_alert_slide(prs, df)
         add_chart_slide(prs, bar_chart_path, pie_chart_path)
         add_summary_slide(prs, df)
+        add_recommendations_slide(prs, df)
 
         prs.save(PPTX_PATH)
 

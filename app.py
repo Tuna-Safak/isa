@@ -29,6 +29,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 OCR_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "ocr_output.txt")
 CSV_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "bloodtest_results.csv")
 PPTX_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "bloodtest_report.pptx")
+REPORT_PYTHON = "python3"
 
 if "uploaded_path" not in st.session_state:
     st.session_state.uploaded_path = None
@@ -77,15 +78,19 @@ if uploaded_file is not None:
         if st.button("Generate PowerPoint"):
             try:
                 with st.spinner("Building CSV, JSON, and PowerPoint report..."):
-                    subprocess.run(
-                        [sys.executable, "extractor.py", OCR_OUTPUT_PATH],
+                    extractor_run = subprocess.run(
+                        [REPORT_PYTHON, "extractor.py", OCR_OUTPUT_PATH],
                         cwd=BASE_DIR,
                         check=True,
+                        capture_output=True,
+                        text=True,
                     )
-                    subprocess.run(
-                        [sys.executable, "generate_presentation.py"],
+                    report_run = subprocess.run(
+                        [REPORT_PYTHON, "generate_presentation.py"],
                         cwd=BASE_DIR,
                         check=True,
+                        capture_output=True,
+                        text=True,
                     )
                     st.session_state.report_ready = True
 
@@ -100,6 +105,7 @@ if uploaded_file is not None:
                             mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                         )
             except subprocess.CalledProcessError as e:
-                st.error(f"Report generation failed: {e}")
+                details = e.stderr.strip() if e.stderr else str(e)
+                st.error(f"Report generation failed: {details}")
             except Exception as e:
                 st.error(f"Unexpected error while generating the PowerPoint: {e}")
