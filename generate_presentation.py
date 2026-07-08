@@ -39,13 +39,17 @@ from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Inches, Pt
+from docx import Document
+from docx.shared import Pt as DocxPt
 
 
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = BASE_DIR / "output"
 CSV_PATH = OUTPUT_DIR / "bloodtest_results.csv"
 JSON_PATH = OUTPUT_DIR / "bloodtest_results.json"
+METADATA_PATH = OUTPUT_DIR / "bloodtest_metadata.json"
 PPTX_PATH = OUTPUT_DIR / "bloodtest_report.pptx"
+DOCX_PATH = OUTPUT_DIR / "bloodtest_report.docx"
 
 NAVY = RGBColor(11, 61, 89)
 TEAL = RGBColor(21, 140, 146)
@@ -88,6 +92,14 @@ def load_records(csv_path: Path, json_path: Path) -> pd.DataFrame:
     return df
 
 
+def load_metadata(metadata_path: Path) -> dict:
+    if not metadata_path.exists() or metadata_path.stat().st_size == 0:
+        return {}
+    with metadata_path.open("r", encoding="utf-8") as handle:
+        data = json.load(handle)
+    return data if isinstance(data, dict) else {}
+
+
 def parse_float(text: str) -> Optional[float]:
     if text is None:
         return None
@@ -105,11 +117,27 @@ def parse_reference(reference: str) -> ParsedReference:
     if not ref:
         return ParsedReference(None, None, "unknown", ref)
 
+    ref = re.sub(r"\.(?=\s+\d)", "-", ref)
+    ref = re.sub(r"\s+[.\-–]\s+", "-", ref)
+    ref_match = re.match(
+        r"^\s*(?P<ref>(?:[<>]?\s*\d+[.,]?\d*(?:\s*[-–]\s*\d+[.,]?\d*)?)).*$",
+        ref,
+    )
+    if ref_match:
+        ref = ref_match.group("ref")
+
     range_match = re.search(r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)", ref)
     if range_match:
         low = parse_float(range_match.group(1))
         high = parse_float(range_match.group(2))
         return ParsedReference(low, high, "range", ref)
+
+    loose_range_match = re.match(r"^\s*(\d+(?:[.,]?\d*)?)\s+(\d+(?:[.,]?\d*)?)\s*$", ref)
+    if loose_range_match:
+        low = parse_float(loose_range_match.group(1))
+        high = parse_float(loose_range_match.group(2))
+        if low is not None and high is not None and 0 < low < high and high / max(low, 1e-9) < 20:
+            return ParsedReference(low, high, "range", f"{low}-{high}")
 
     upper_match = re.search(r"^<?\s*(\d+(?:[.,]\d+)?)", ref)
     if ref.startswith("<") and upper_match:
@@ -124,6 +152,39 @@ def parse_reference(reference: str) -> ParsedReference:
     return ParsedReference(None, None, "unknown", ref)
 
 
+def infer_default_reference(marker: str) -> ParsedReference:
+    marker_key = (marker or "").strip().lower()
+
+    if "hdl" in marker_key:
+        return ParsedReference(40.0, None, "lower", "> 40")
+    if "ldl" in marker_key:
+        return ParsedReference(None, 130.0, "upper", "< 130")
+    if "cholesterin" in marker_key:
+        return ParsedReference(None, 200.0, "upper", "< 200")
+    if "triglycerid" in marker_key:
+        return ParsedReference(None, 150.0, "upper", "< 150")
+    if "kreatinin" in marker_key:
+        return ParsedReference(None, 1.2, "upper", "< 1.2")
+    if "calcium" in marker_key:
+        return ParsedReference(2.1, 2.55, "range", "2.1-2.55")
+    if "glukose" in marker_key or "glucose" in marker_key:
+        return ParsedReference(70.0, 100.0, "range", "70-100")
+    if "hba1c" in marker_key:
+        return ParsedReference(None, 5.7, "upper", "< 5.7")
+    if "gpt" in marker_key or "alat" in marker_key or "alt" in marker_key:
+        return ParsedReference(None, 50.0, "upper", "< 50")
+    if "gamma" in marker_key or "gt" in marker_key:
+        return ParsedReference(None, 50.0, "upper", "< 50")
+    if "kalium" in marker_key:
+        return ParsedReference(3.5, 5.1, "range", "3.5-5.1")
+    if "natrium" in marker_key:
+        return ParsedReference(136.0, 145.0, "range", "136-145")
+    if "harn" in marker_key and "säure" in marker_key:
+        return ParsedReference(None, 7.0, "upper", "< 7.0")
+
+    return ParsedReference(None, None, "unknown", "")
+
+
 def classify_value(value: float, parsed: ParsedReference) -> str:
     if parsed.mode == "range" and parsed.low is not None and parsed.high is not None:
         if value < parsed.low:
@@ -135,10 +196,18 @@ def classify_value(value: float, parsed: ParsedReference) -> str:
         return "normal"
 
     if parsed.mode == "upper" and parsed.high is not None:
-        return "normal" if value <= parsed.high else "high"
+        if value > parsed.high:
+            return "high"
+        if abs(parsed.high - value) / max(parsed.high, 1e-9) <= 0.1:
+            return "borderline"
+        return "normal"
 
     if parsed.mode == "lower" and parsed.low is not None:
-        return "normal" if value >= parsed.low else "low"
+        if value < parsed.low:
+            return "low"
+        if abs(value - parsed.low) / max(parsed.low, 1e-9) <= 0.1:
+            return "borderline"
+        return "normal"
 
     return "unknown"
 
@@ -156,6 +225,8 @@ def enrich_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in df.iterrows():
         value = parse_float(row["value"])
         parsed = parse_reference(row["reference"])
+        if value is not None and parsed.mode == "unknown":
+            parsed = infer_default_reference(str(row["marker"]).strip())
         status = "unknown"
         deviation = None
 
@@ -286,7 +357,7 @@ def build_status_pie(df: pd.DataFrame, out_path: Path) -> Optional[Path]:
     return out_path
 
 
-def add_title_slide(prs: Presentation, df: pd.DataFrame) -> None:
+def add_title_slide(prs: Presentation, df: pd.DataFrame, test_date: Optional[str]) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_modern_background(slide)
     teal_block = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0.45), Inches(4.2), Inches(4.9))
@@ -303,7 +374,7 @@ def add_title_slide(prs: Presentation, df: pd.DataFrame) -> None:
     tf.clear()
     p = tf.paragraphs[0]
     r = p.add_run()
-    r.text = "Blood Test Report"
+    r.text = "Doctor's Report"
     r.font.size = Pt(30)
     r.font.bold = True
     r.font.color.rgb = RGBColor(255, 255, 255)
@@ -321,6 +392,8 @@ def add_title_slide(prs: Presentation, df: pd.DataFrame) -> None:
         f"{int((df['status'].isin(['low', 'high', 'borderline'])).sum())} notable values",
         "CSV + JSON summary included",
     ]
+    if test_date:
+        stat_lines.insert(0, f"Test date: {test_date}")
     for idx, line in enumerate(stat_lines):
         p = stf.paragraphs[0] if idx == 0 else stf.add_paragraph()
         p.text = line
@@ -441,7 +514,7 @@ def add_table_slide(prs: Presentation, df: pd.DataFrame, title: str, rows_limit:
 def add_alert_slide(prs: Presentation, df: pd.DataFrame) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_modern_background(slide)
-    add_slide_title(slide, "Alert Review", "Values outside or close to the reference range")
+    add_slide_title(slide, "Abnormal Values", "Values outside or close to the reference range")
 
     notable = df[df["status"].isin(["low", "high", "borderline"])].copy()
     if notable.empty:
@@ -506,7 +579,7 @@ def add_chart_slide(prs: Presentation, bar_path: Optional[Path], pie_path: Optio
 def add_summary_slide(prs: Presentation, df: pd.DataFrame) -> None:
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     add_modern_background(slide)
-    add_slide_title(slide, "Summary", "Main findings from the structured OCR output")
+    add_slide_title(slide, "Normal Values", "Main findings from the structured OCR output")
 
     body_box = slide.shapes.add_textbox(Inches(0.85), Inches(1.65), Inches(8.4), Inches(4.4))
     body = body_box.text_frame
@@ -516,9 +589,12 @@ def add_summary_slide(prs: Presentation, df: pd.DataFrame) -> None:
     status_counts = df["status"].value_counts().to_dict()
     notable = df[df["status"].isin(["low", "high", "borderline"])].copy()
 
+    normal_count = int(status_counts.get('normal', 0))
+    notable_count = int(status_counts.get('borderline', 0)) + int(status_counts.get('low', 0)) + int(status_counts.get('high', 0))
+
     bullets = [f"Total markers evaluated: {total}"]
-    bullets.append(f"Normal values: {int(status_counts.get('normal', 0))}")
-    bullets.append(f"Notable values: {int(status_counts.get('borderline', 0)) + int(status_counts.get('low', 0)) + int(status_counts.get('high', 0))}")
+    bullets.append(f"Normal values: {normal_count}")
+    bullets.append(f"Notable values: {notable_count}")
 
     if not notable.empty:
         top_row = notable.copy()
@@ -591,31 +667,136 @@ def add_recommendations_slide(prs: Presentation, df: pd.DataFrame) -> None:
         paragraph.font.color.rgb = SLATE
 
 
+def build_word_report(df: pd.DataFrame, test_date: Optional[str]) -> None:
+    doc = Document()
+    styles = doc.styles
+    styles["Normal"].font.name = "Arial"
+    styles["Normal"].font.size = DocxPt(10.5)
+
+    title = doc.add_paragraph()
+    title_run = title.add_run("Doctor's Report")
+    title_run.bold = True
+    title_run.font.size = DocxPt(18)
+
+    if test_date:
+        p = doc.add_paragraph()
+        run = p.add_run(f"Blood test date: {test_date}")
+        run.bold = True
+
+    doc.add_paragraph(f"Total markers extracted: {len(df)}")
+    doc.add_paragraph(f"Normal values: {int((df['status'] == 'normal').sum())}")
+    doc.add_paragraph(f"Abnormal values: {int((df['status'].isin(['low', 'high', 'borderline'])).sum())}")
+
+    normal_df = df[df["status"] == "normal"].sort_values(by="marker")
+    abnormal_df = df[df["status"].isin(["low", "high", "borderline"])].sort_values(by=["status", "marker"])
+
+    def add_section_heading(text: str) -> None:
+        heading = doc.add_paragraph()
+        run = heading.add_run(text)
+        run.bold = True
+        run.font.size = DocxPt(13)
+
+    def add_table(section_df: pd.DataFrame) -> None:
+        if section_df.empty:
+            doc.add_paragraph("No values found in this section.")
+            return
+        table = doc.add_table(rows=1, cols=4)
+        table.style = "Table Grid"
+        headers = ["Marker", "Value", "Unit", "Reference"]
+        for idx, header in enumerate(headers):
+            table.rows[0].cells[idx].text = header
+        for _, row in section_df.iterrows():
+            cells = table.add_row().cells
+            cells[0].text = str(row["marker"])
+            cells[1].text = "" if pd.isna(row["value"]) else str(row["value"])
+            cells[2].text = str(row["unit"])
+            cells[3].text = str(row["reference"])
+
+    add_section_heading("Normal Values")
+    add_table(normal_df)
+    add_section_heading("Abnormal Values")
+    add_table(abnormal_df)
+
+    add_section_heading("Recommendations")
+    for item in build_recommendations(df):
+        doc.add_paragraph(item, style="List Bullet")
+
+    doc.save(DOCX_PATH)
+
+
+def add_compact_table_slide(prs: Presentation, df: pd.DataFrame, title: str, subtitle: str) -> None:
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_modern_background(slide)
+    add_slide_title(slide, title, subtitle)
+
+    if df.empty:
+        text_box = slide.shapes.add_textbox(Inches(0.8), Inches(1.9), Inches(8.5), Inches(1.2))
+        tf = text_box.text_frame
+        tf.text = "No values matched this section."
+        tf.paragraphs[0].font.size = Pt(22)
+        return
+
+    rows = min(len(df), 10) + 1
+    table = slide.shapes.add_table(rows, 4, Inches(0.4), Inches(1.55), Inches(9.2), Inches(4.6)).table
+    headers = ["Marker", "Value", "Unit", "Reference"]
+    widths = [3.2, 1.3, 1.2, 3.5]
+    for idx, width in enumerate(widths):
+        table.columns[idx].width = Inches(width)
+        cell = table.cell(0, idx)
+        cell.text = headers[idx]
+        for paragraph in cell.text_frame.paragraphs:
+            paragraph.font.bold = True
+            paragraph.font.size = Pt(12)
+            paragraph.font.color.rgb = NAVY
+
+    for row_idx, (_, row) in enumerate(df.head(10).iterrows(), start=1):
+        values = [
+            row["marker"],
+            "" if pd.isna(row["value"]) else str(row["value"]),
+            row["unit"],
+            row["reference"],
+        ]
+        for col_idx, value in enumerate(values):
+            cell = table.cell(row_idx, col_idx)
+            cell.text = str(value)
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = RGBColor(255, 255, 255)
+            for paragraph in cell.text_frame.paragraphs:
+                paragraph.font.size = Pt(10)
+
+
 def main() -> None:
     try:
         ensure_output_dir(OUTPUT_DIR)
         df_raw = load_records(CSV_PATH, JSON_PATH)
         df = enrich_dataframe(df_raw)
+        metadata = load_metadata(METADATA_PATH)
+        test_date = metadata.get("test_date")
 
         bar_chart_path = build_bar_chart(df, OUTPUT_DIR / "ppt_bar_chart.png")
         deviation_chart_path = build_deviation_chart(df, OUTPUT_DIR / "ppt_deviation_chart.png")
         pie_chart_path = build_status_pie(df, OUTPUT_DIR / "ppt_status_pie.png")
 
         prs = Presentation()
-        add_title_slide(prs, df)
+        add_title_slide(prs, df, test_date)
 
         overview = prs.slides.add_slide(prs.slide_layouts[6])
         add_overview_boxes(overview, df)
 
-        add_table_slide(prs, df.sort_values(by=["status", "marker"]), "Important Blood Values", rows_limit=10)
+        normal_df = df[df["status"] == "normal"].sort_values(by="marker")
+        abnormal_df = df[df["status"].isin(["low", "high", "borderline"])].sort_values(by=["status", "marker"])
+
+        add_compact_table_slide(prs, normal_df, "Normal Values", "Values inside the reference range")
+        add_compact_table_slide(prs, abnormal_df, "Abnormal Values", "Values outside or close to the reference range")
         add_alert_slide(prs, df)
         add_chart_slide(prs, bar_chart_path, pie_chart_path)
-        add_summary_slide(prs, df)
         add_recommendations_slide(prs, df)
 
         prs.save(PPTX_PATH)
+        build_word_report(df, test_date)
 
         print(f"Saved PowerPoint: {PPTX_PATH}")
+        print(f"Saved Word report: {DOCX_PATH}")
         print(f"Loaded data rows: {len(df)}")
         print(f"Notable rows: {int((df['status'].isin(['low', 'high', 'borderline'])).sum())}")
     except Exception as exc:

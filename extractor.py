@@ -21,6 +21,7 @@ from typing import Dict, List, Optional
 OUTPUT_DIR = Path("output")
 CSV_PATH = OUTPUT_DIR / "bloodtest_results.csv"
 JSON_PATH = OUTPUT_DIR / "bloodtest_results.json"
+METADATA_PATH = OUTPUT_DIR / "bloodtest_metadata.json"
 
 UNIT_PATTERN = r"(?:mg/dl|g/dl|g/l|mmol/l|mmol/mol|nmol/l|µmol/l|umol/l|ng/ml|µg/l|ug/l|u/l|iu/l|u?iu/ml|u?iu/l|miu/l|miu/ml|pg|fl|%|t/l|mio\.?/ul|/ul)"
 
@@ -104,6 +105,32 @@ def normalize_numeric_token(token: str) -> str:
     return token
 
 
+def normalize_reference_text(reference: str) -> str:
+    reference = clean_text(reference)
+    reference = re.sub(r"\.(?=\s+\d)", "-", reference)
+    reference = re.sub(r"\s+[.\-–]\s+", "-", reference)
+
+    ref_match = re.match(
+        r"^\s*(?P<ref>(?:[<>]?\s*\d+[.,]?\d*(?:\s*[-–]\s*\d+[.,]?\d*)?)).*$",
+        reference,
+    )
+    if ref_match:
+        reference = ref_match.group("ref")
+
+    loose_range = re.match(r"^\s*(\d+[.,]?\d*)\s+(\d+[.,]?\d*)\s*$", reference)
+    if loose_range:
+        low = normalize_numeric_token(loose_range.group(1))
+        high = normalize_numeric_token(loose_range.group(2))
+        try:
+            low_val = float(low)
+            high_val = float(high)
+            if 0 < low_val < high_val and high_val / max(low_val, 1e-9) < 20:
+                reference = f"{low}-{high}"
+        except ValueError:
+            pass
+    return reference.strip()
+
+
 def normalize_marker(marker: str) -> str:
     marker = clean_text(marker)
     marker = re.sub(r"\s+", " ", marker).strip(" -:")
@@ -124,8 +151,20 @@ def is_valid_lab_line(line: str) -> bool:
     has_marker = bool(MARKER_REGEX.search(line))
     has_value = bool(re.search(r"[aAoOlI]?\d+(?:[.,]\d+)?", line))
     has_unit = bool(re.search(UNIT_PATTERN, line, flags=re.IGNORECASE))
-    has_reference = bool(re.search(r"(?:<|>|-|–)\s*\d|\d\s*-\s*\d", line))
-    return has_marker and has_value and (has_unit or has_reference)
+    if not (has_marker and has_value and has_unit):
+        return False
+
+    value_match = re.search(r"(?P<value>-?[aAoOlI]?\d+(?:[.,]\d+)?)", line)
+    if not value_match:
+        return False
+
+    tail = clean_text(line[value_match.end("value") :])
+    if not tail:
+        return False
+
+    explicit_reference = bool(re.search(r"(?:<|>|-|–)\s*\d|\d\s*-\s*\d", line))
+    tail_has_numbers = bool(re.search(r"\d+(?:[.,]\d+)?", tail))
+    return explicit_reference or tail_has_numbers
 
 
 def filter_valid_lab_lines(raw_text: str) -> List[str]:
@@ -163,7 +202,7 @@ def parse_line(line: str) -> Optional[Dict[str, str]]:
     reference = ""
     if unit_match:
         unit = unit_match.group("unit") or ""
-        reference = clean_text(unit_match.group("reference") or "")
+        reference = normalize_reference_text(unit_match.group("reference") or "")
 
     if unit:
         unit = unit.replace("mio./ul", "Mio./ul").replace("Mio./ul", "Mio./ul")
@@ -220,6 +259,29 @@ def write_json(records: List[Dict[str, str]], path: Path) -> None:
         json.dump(records, jsonfile, ensure_ascii=False, indent=2)
 
 
+def extract_test_date(raw_text: str) -> Optional[str]:
+    patterns = [
+        r"\b(\d{2}\.\d{2}\.\d{4})\b",
+        r"\b(\d{2}/\d{2}/\d{4})\b",
+        r"\b(\d{4}-\d{2}-\d{2})\b",
+        r"\b(\d{2}\.\d{2}\.\d{2})\b",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, raw_text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def write_metadata(raw_text: str, records: List[Dict[str, str]], path: Path) -> None:
+    metadata = {
+        "test_date": extract_test_date(raw_text),
+        "record_count": len(records),
+    }
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, ensure_ascii=False, indent=2)
+
+
 def print_summary(records: List[Dict[str, str]]) -> None:
     if not records:
         print("No blood test rows found.")
@@ -256,9 +318,11 @@ def main() -> None:
         records = parse_ocr_text(raw_text)
         write_csv(records, CSV_PATH)
         write_json(records, JSON_PATH)
+        write_metadata(raw_text, records, METADATA_PATH)
         print_summary(records)
         print(f"\nSaved CSV: {CSV_PATH}")
         print(f"Saved JSON: {JSON_PATH}")
+        print(f"Saved metadata: {METADATA_PATH}")
     except Exception as exc:
         print(f"Extractor failed: {exc}")
         sys.exit(1)

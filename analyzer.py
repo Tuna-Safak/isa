@@ -50,36 +50,75 @@ def parse_reference(ref: str) -> Optional[Tuple[float, float]]:
         return None
 
 
-def compute_deviation_and_risk(value: float, low: float, high: float) -> Tuple[float, str]:
-    """Compute % deviation from reference center and assign risk level.
+def infer_default_reference(marker: str) -> Optional[Tuple[float, float]]:
+    marker_key = (marker or "").strip().lower()
 
-    Rules implemented:
-    - pct_dev: (value - center) / center * 100
-    - critical: value > 150% of high OR value < 50% of low
-    - high / low: value outside [low, high]
-    - borderline: value within 10% of either limit (but inside range)
-    - normal: otherwise inside the reference range
-    """
-    center = (low + high) / 2.0
-    pct_dev = (value - center) / center * 100.0 if center != 0 else 0.0
+    if "hdl" in marker_key:
+        return 40.0, None
+    if "ldl" in marker_key:
+        return None, 130.0
+    if "cholesterin" in marker_key:
+        return None, 200.0
+    if "triglycerid" in marker_key:
+        return None, 150.0
+    if "kreatinin" in marker_key:
+        return None, 1.2
+    if "calcium" in marker_key:
+        return 2.1, 2.55
+    if "glukose" in marker_key or "glucose" in marker_key:
+        return 70.0, 100.0
+    if "hba1c" in marker_key:
+        return None, 5.7
+    if "gpt" in marker_key or "alat" in marker_key or "alt" in marker_key:
+        return None, 50.0
+    if "gamma" in marker_key or "gt" in marker_key:
+        return None, 50.0
+    if "kalium" in marker_key:
+        return 3.5, 5.1
+    if "natrium" in marker_key:
+        return 136.0, 145.0
 
-    # Critical conditions
-    if value > 1.5 * high:
-        return pct_dev, 'critical'
-    if value < 0.5 * low:
-        return pct_dev, 'critical'
+    return None
 
-    # Out of range
-    if value > high:
-        return pct_dev, 'high'
-    if value < low:
-        return pct_dev, 'low'
 
-    # Borderline: within 10% of either limit (relative to that limit)
-    if abs(value - low) / max(low, 1e-9) <= 0.10 or abs(high - value) / max(high, 1e-9) <= 0.10:
-        return pct_dev, 'borderline'
+def compute_deviation_and_risk(value: float, low: Optional[float], high: Optional[float]) -> Tuple[float, str]:
+    """Compute % deviation and assign a risk level from optional low/high bounds."""
+    if low is None and high is None:
+        return 0.0, 'unknown'
 
-    return pct_dev, 'normal'
+    if low is not None and high is not None:
+        center = (low + high) / 2.0
+        pct_dev = (value - center) / center * 100.0 if center != 0 else 0.0
+
+        if value > 1.5 * high:
+            return pct_dev, 'critical'
+        if value < 0.5 * low:
+            return pct_dev, 'critical'
+        if value > high:
+            return pct_dev, 'high'
+        if value < low:
+            return pct_dev, 'low'
+        if abs(value - low) / max(low, 1e-9) <= 0.10 or abs(high - value) / max(high, 1e-9) <= 0.10:
+            return pct_dev, 'borderline'
+        return pct_dev, 'normal'
+
+    if high is not None:
+        pct_dev = ((value - high) / high) * 100.0 if high else 0.0
+        if value > high:
+            return pct_dev, 'high'
+        if abs(high - value) / max(high, 1e-9) <= 0.10:
+            return pct_dev, 'borderline'
+        return pct_dev, 'normal'
+
+    if low is not None:
+        pct_dev = ((value - low) / low) * 100.0 if low else 0.0
+        if value < low:
+            return pct_dev, 'low'
+        if abs(value - low) / max(low, 1e-9) <= 0.10:
+            return pct_dev, 'borderline'
+        return pct_dev, 'normal'
+
+    return 0.0, 'unknown'
 
 
 def main():
@@ -115,6 +154,9 @@ def main():
         val = row.get('value', None)
 
         parsed = parse_reference(ref)
+        if parsed is None and val is not None:
+            parsed = infer_default_reference(row.get('marker', ''))
+
         if parsed and val is not None:
             low, high = parsed
             pct_dev, risk = compute_deviation_and_risk(float(val), low, high)
@@ -144,7 +186,7 @@ def main():
 
     # Print summary table
     try:
-        display_cols = ['marker', 'value', 'reference', 'status', 'pct_deviation_from_center', 'risk_level']
+        display_cols = ['marker', 'value', 'reference', 'pct_deviation_from_center', 'risk_level']
         print('\nAnalysis Summary:')
         print(df[display_cols].to_string(index=False))
     except Exception as e:

@@ -1,4 +1,3 @@
-
 import os
 import subprocess
 import sys
@@ -29,16 +28,20 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 OCR_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "ocr_output.txt")
 CSV_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "bloodtest_results.csv")
 PPTX_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "bloodtest_report.pptx")
-REPORT_PYTHON = "python3"
+DOCX_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "bloodtest_report.docx")
+REPORT_PYTHON = sys.executable
 
 if "uploaded_path" not in st.session_state:
     st.session_state.uploaded_path = None
-if "extracted_text" not in st.session_state:
-    st.session_state.extracted_text = ""
-if "ocr_done" not in st.session_state:
-    st.session_state.ocr_done = False
-if "report_ready" not in st.session_state:
-    st.session_state.report_ready = False
+
+if "generated_for_path" not in st.session_state:
+    st.session_state.generated_for_path = None
+
+if "generated_pptx_path" not in st.session_state:
+    st.session_state.generated_pptx_path = None
+
+if "generated_docx_path" not in st.session_state:
+    st.session_state.generated_docx_path = None
 
 uploaded_file = st.file_uploader(
     "Upload blood test image",
@@ -51,61 +54,66 @@ if uploaded_file is not None:
     saved_file_path = os.path.join(OUTPUT_DIR, uploaded_file.name)
     st.session_state.uploaded_path = saved_file_path
 
+    if st.session_state.get("generated_for_path") != saved_file_path:
+        st.session_state.generated_for_path = None
+        st.session_state.generated_pptx_path = None
+        st.session_state.generated_docx_path = None
+
     with open(saved_file_path, "wb") as f:
         f.write(uploaded_file.getvalue())
 
     st.write("File saved successfully.")
 
-    if st.button("Run OCR"):
+    if st.button("Generate PowerPoint"):
         try:
-            with st.spinner("Running OCR..."):
+            with st.spinner("Running OCR and generating report..."):
                 extracted_text = process_image_file(saved_file_path)
-                st.session_state.extracted_text = extracted_text
-                st.session_state.ocr_done = True
                 with open(OCR_OUTPUT_PATH, "w", encoding="utf-8") as handle:
                     handle.write(extracted_text)
 
-            st.subheader("OCR Output")
-            st.text_area("Extracted text", extracted_text, height=400)
+                subprocess.run(
+                    [REPORT_PYTHON, "extractor.py", OCR_OUTPUT_PATH],
+                    cwd=BASE_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                subprocess.run(
+                    [REPORT_PYTHON, "generate_presentation.py"],
+                    cwd=BASE_DIR,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
 
+            st.success(f"PowerPoint generated: {PPTX_OUTPUT_PATH}")
+            st.session_state.generated_for_path = saved_file_path
+            st.session_state.generated_pptx_path = PPTX_OUTPUT_PATH
+            st.session_state.generated_docx_path = DOCX_OUTPUT_PATH
+        except subprocess.CalledProcessError as e:
+            details = e.stderr.strip() if e.stderr else str(e)
+            st.error(f"Report generation failed: {details}")
         except Exception as e:
-            st.error(f"An error occurred during OCR: {e}")
+            st.error(f"Unexpected error while generating the PowerPoint: {e}")
 
-    if st.session_state.ocr_done:
-        st.success("OCR finished. You can now generate the PowerPoint report.")
-        st.text_area("Extracted text", st.session_state.extracted_text, height=300)
+    if st.session_state.get("generated_for_path") == saved_file_path:
+        pptx_path = Path(st.session_state.generated_pptx_path or PPTX_OUTPUT_PATH)
+        docx_path = Path(st.session_state.generated_docx_path or DOCX_OUTPUT_PATH)
 
-        if st.button("Generate PowerPoint"):
-            try:
-                with st.spinner("Building CSV, JSON, and PowerPoint report..."):
-                    extractor_run = subprocess.run(
-                        [REPORT_PYTHON, "extractor.py", OCR_OUTPUT_PATH],
-                        cwd=BASE_DIR,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    report_run = subprocess.run(
-                        [REPORT_PYTHON, "generate_presentation.py"],
-                        cwd=BASE_DIR,
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                    )
-                    st.session_state.report_ready = True
+        if pptx_path.exists():
+            with pptx_path.open("rb") as file_handle:
+                st.download_button(
+                    "Download PowerPoint",
+                    data=file_handle,
+                    file_name="bloodtest_report.pptx",
+                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                )
 
-                st.success(f"PowerPoint generated: {PPTX_OUTPUT_PATH}")
-                pptx_path = Path(PPTX_OUTPUT_PATH)
-                if pptx_path.exists():
-                    with pptx_path.open("rb") as file_handle:
-                        st.download_button(
-                            "Download PowerPoint",
-                            data=file_handle,
-                            file_name="bloodtest_report.pptx",
-                            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                        )
-            except subprocess.CalledProcessError as e:
-                details = e.stderr.strip() if e.stderr else str(e)
-                st.error(f"Report generation failed: {details}")
-            except Exception as e:
-                st.error(f"Unexpected error while generating the PowerPoint: {e}")
+        if docx_path.exists():
+            with docx_path.open("rb") as file_handle:
+                st.download_button(
+                    "Download Word report",
+                    data=file_handle,
+                    file_name="bloodtest_report.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )

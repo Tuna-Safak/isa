@@ -1,9 +1,6 @@
 marker,value,unit,reference
-GPT / ALAT,21,u/l,< 50
-Gamma-Gt,54,u/l,< 60
-Cholesterin,197,mg/dl,< 200
-HDL-Cholesterin,48,mg/dl,> 40
-Triglyceride,128,mg/dl,< 150
-Kreatinin,0.95,mg/dl,0.84 - 1.25
-Kalium,4.7,mmol/l,3.5 - 5.1
-Calcium,2.36,mmol/l,2.05 - 2.55
+Cholesterin,197,mg/dl,2
+HDL- Cholesterin,48,mg/dl,s a0 3563Hl
+Triglyceride,128,mg/dl,2
+Kreatinin,0.95,mg/dl,0.34
+Calcium,27.36,mmol/l,2.05- 212.55
